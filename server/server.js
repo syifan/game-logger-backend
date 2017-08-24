@@ -46,9 +46,12 @@ app.get('/api/log', function (req, res) {
     let json;
 
     try {
+        console.log(req.query.json);
         json = JSON.parse(req.query.json);
     } catch (e) {
+        console.error(e);
         res.send(""); // Silently ignore the non-parsable information
+        return;
     }
 
     switch (json.type) {
@@ -58,6 +61,15 @@ app.get('/api/log', function (req, res) {
         case 'run_begin':
             handleRunBegin(json);
             break;
+        case 'action':
+            handleAction(json);
+            break;
+        case 'run_end':
+            handleRunEnd(json);
+            break;
+        case 'session_end':
+            handleSessionEnd(json);
+            break;
         default:
             console.error("Not sure how to deal with log type " + json.type);
     }
@@ -66,17 +78,16 @@ app.get('/api/log', function (req, res) {
 
 function handleSessionBegin(json) {
     connection.query(
-        'INSERT INTO game_logger.game_sessions (' +
-        '  session_id, player_id, game_name, client_time, detail_begin, detail_end' +
+        'INSERT INTO sessions (' +
+        '  session_id, player_id, game_name, begin_time, detail_begin' +
         ') VALUES (' +
-        '  ?, ?, ?, ?, ?, ?' +
+        '  ?, ?, ?, ?, ?' +
         ');', [
             json.data.session_id,
             json.data.player_id,
             json.data.game_id,
             json.data.client_time,
             JSON.stringify(json.data.details),
-            JSON.stringify({})
         ],
         function (error, result) {
             if (error) {
@@ -89,39 +100,85 @@ function handleSessionBegin(json) {
 }
 
 function handleRunBegin(json) {
-    connection.query('SELECT game_session_id FROM game_sessions WHERE session_id=?', [json.data.session_id],
-        function (error, result) {
+    connection.query(
+        'INSERT INTO runs (' +
+        '  run_id, session_id, seqno, begin_time, detail_begin' +
+        ') VALUES (' +
+        '  ?, ?, ?, ?, ?' +
+        ');', [
+            json.data.run_id,
+            json.data.session_id,
+            json.data.run_seqno,
+            json.data.client_time,
+            JSON.stringify(json.data.details),
+        ],
+        function (error) {
             if (error) {
                 console.error(error);
                 throw error;
             }
-
-            if (result.length == 0) {
-                throw new Error("Session id not found");
-            }
-
-            let session_id = result[0].game_session_id;
-
-
-            connection.query(
-                'INSERT INTO game_runs (' +
-                '  run_id, game_session_id, seqno, client_time, detail_begin, detail_end' +
-                ') VALUES (' +
-                '  ?, ?, ?, ?, ?, ?' +
-                ');', [
-                    json.data.run_id,
-                    session_id,
-                    json.data.run_seqno,
-                    json.data.client_time,
-                    JSON.stringify(json.data.details),
-                    JSON.stringify({})
-                ],
-                function (error) {
-                    if (error) {
-                        console.error(error);
-                        throw error;
-                    }
-                })
         })
 }
+
+function handleAction(json) {
+    connection.query(
+        `INSERT INTO actions (
+          run_id, detail, client_time, seqno
+        ) VALUES (
+          ?, ?, ?, ?
+        )`, [
+            json.data.run_id, 
+            JSON.stringify(json.data.details),
+            json.data.client_time,
+            json.data.action_seqno,
+        ], function(error) {
+            if (error) {
+                console.error(error);
+                throw error;
+            }
+        }
+    )
+}
+
+function handleRunEnd(json) {
+    connection.query(
+        `UPDATE runs SET
+             end_time = ?, 
+             detail_end = ?
+        WHERE
+            run_id = ?;`, 
+        [
+            json.data.client_time, 
+            JSON.stringify(json.data.details),
+            json.data.run_id,
+        ], function(error) {
+            if (error) {
+                console.error(error);
+                throw error;
+            }
+        }
+    );
+}
+
+function handleSessionEnd(json) {
+    connection.query(
+        `UPDATE sessions SET
+             end_time = ?, 
+             detail_end = ?
+        WHERE
+            session_id = ?;`, 
+        [
+            json.data.client_time, 
+            JSON.stringify(json.data.details),
+            json.data.session_id,
+        ], function(error) {
+            if (error) {
+                console.error(error);
+                throw error;
+            }
+        }
+    );
+
+}
+
 console.log('Server ready');
