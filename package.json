@@ -18,6 +18,7 @@
   "homepage": "https://github.com/syifan/game-logger-backend#readme",
   "dependencies": {
     "body-parser": "^1.17.2",
+    "dotenv": "^4.0.0",
     "express": "^4.15.4",
     "mysql": "^2.14.1"
   }

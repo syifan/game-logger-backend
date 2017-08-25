@@ -1,45 +1,40 @@
 'use strict';
-const fs = require('fs');
-const https = require('https');
+require('dotenv').config()
 const express = require('express');
 const mysql = require('mysql');
 const bodyParser = require('body-parser');
 
 var connection = initDB()
-var app = initServer();
+var app = initHTTPServer();
 
 function initDB() {
     let connection = mysql.createConnection({
-        host: 'localhost',
-        user: 'root',
-        password: 'root',
-        database: 'game_logger'
+        host: process.env.DB_HOST,
+        port: process.env.DB_PORT,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASS,
+        database: process.env.DB_DATABASE,
     });
 
     connection.connect();
     return connection;
 }
 
-function initServer() {
-    let privateKey = fs.readFileSync('/home/yifan/cert/server.key', 'utf8');
-    let certificate = fs.readFileSync('/home/yifan/cert/server.crt', 'utf8');
-
-    let credentials = {
-        key: privateKey,
-        cert: certificate
-    };
-
+function initHTTPServer() {
     let app = express();
-    let httpsServer = https.createServer(credentials, app);
-    httpsServer.listen(18443);
 
     app.use(bodyParser.json());
     app.use(bodyParser.urlencoded({
         extended: true
     }));
 
+    app.listen(process.env.SERVER_PORT);
     return app;
 }
+
+app.get('/', function (req, res) {
+    res.send('/');
+})
 
 app.get('/api/log', function (req, res) {
 
@@ -127,11 +122,12 @@ function handleAction(json) {
         ) VALUES (
           ?, ?, ?, ?
         )`, [
-            json.data.run_id, 
+            json.data.run_id,
             JSON.stringify(json.data.details),
             json.data.client_time,
             json.data.action_seqno,
-        ], function(error) {
+        ],
+        function (error) {
             if (error) {
                 console.error(error);
                 throw error;
@@ -146,12 +142,12 @@ function handleRunEnd(json) {
              end_time = ?, 
              detail_end = ?
         WHERE
-            run_id = ?;`, 
-        [
-            json.data.client_time, 
+            run_id = ?;`, [
+            json.data.client_time,
             JSON.stringify(json.data.details),
             json.data.run_id,
-        ], function(error) {
+        ],
+        function (error) {
             if (error) {
                 console.error(error);
                 throw error;
@@ -166,19 +162,18 @@ function handleSessionEnd(json) {
              end_time = ?, 
              detail_end = ?
         WHERE
-            session_id = ?;`, 
-        [
-            json.data.client_time, 
+            session_id = ?;`, [
+            json.data.client_time,
             JSON.stringify(json.data.details),
             json.data.session_id,
-        ], function(error) {
+        ],
+        function (error) {
             if (error) {
                 console.error(error);
                 throw error;
             }
         }
     );
-
 }
 
 console.log('Server ready');
