@@ -34,7 +34,7 @@ docker pull yifansun/game-logger-backend:0.1
 When the download completes, use the following command to launch the server:
 
 ```bash
-docker run -p 10080:80 --env DB_HOST=[db_host] --env DB_PORT=[db_port] --env DB_USER=[db_username] --env DB_PASS=[db_password] --env DB_DATABASE=game_logger game-logger-backend
+docker run -p 18080:80 --env DB_HOST=[db_host] --env DB_PORT=[db_port] --env DB_USER=[db_username] --env DB_PASS=[db_password] --env DB_DATABASE=game_logger -d --name game-logger-backend yifansun/game-logger-backend:0.1
 ```
 
 You will need to replace the database linking parameters in the command to make sure that the server can connect to the database.
