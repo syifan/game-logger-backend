@@ -38,3 +38,35 @@ docker run -p 18080:80 --env DB_HOST=[db_host] --env DB_PORT=[db_port] --env DB_
 ```
 
 You will need to replace the database linking parameters in the command to make sure that the server can connect to the database.
+
+### Deploy with HTTPs
+
+Although it is possible to configure the SSL certificate directly with nodejs, we recommend to use Apache as a proxy. It will be easier to deploy the certificate and enable virtual hosting.
+
+Assuming you have Apache installed and running and you have your SSL certificate ready, you will first need to add a configuration file in `/etc/apache2/sites-available` directory with name `game_logger.conf`. The content should be the following:
+
+```Apache
+<VirtualHost *:443>
+    ServerName [your_domain_name]
+    ServerAlias www.[your_domain_name]
+
+    ProxyPreserveHost On
+    ProxyRequests Off
+
+    SSLEngine on
+    SSLProtocol all -SSLv2
+    SSLCipherSuite HIGH:MEDIUM:!aNULL:!MD5
+    SSLCertificateFile "[path/to/certificate]"
+    SSLCertificateKeyFile "[path/to/private_key]"
+
+    <Proxy *>
+        Order deny,allow
+        Allow from all
+    </Proxy>
+
+    ProxyPass / http://localhost:[port]/
+    ProxyPassReverse / http://localhost:[port]/
+</VirtualHost>
+```
+
+Then, the command `a2ensite game_logger` enables the sites. You should also need to restart the Apache Server with command `service apache2 restart` to make the change take effect.
